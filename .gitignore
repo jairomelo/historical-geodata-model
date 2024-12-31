@@ -1,4 +1,8 @@
+__pycache__/
+
 venv/
+.env
+*.xml
 *.out
 *.zip
-explorer.py
+explore.py
