@@ -26,9 +26,9 @@ Created by Werner Stangl: "The lugares (settlements) in the Historical-Geographi
 
 ### Raw data
 
-Raw data is not included in the repository. It is available in the following links:
+Raw data is not included in the repository. It is available in the following sources:
 
-- [TGN](http://tgndownloads.getty.edu/) 
-    - Dataset used: http://tgndownloads.getty.edu/VocabData/tgn_xml_0521.zip (updated 6/11/2021)
-- [HGIS de las Indias](https://whgazetteer.org/datasets/14/places) Linked Places format (LPF) (updated 14/12/2024)
+- Getty Thesaurus of Geographic Names (TGN). [Data file, last modified 6 Nov 2021]. Retrieved from http://tgndownloads.getty.edu/, 27 Dec 2024
+- HGIS de las Indias (lugares). [Data file, last modified 14 Jun 2024]. Retrieved from http://whgazetteer.org/datasets/14/places/, 31 Dec 2024
+
 
