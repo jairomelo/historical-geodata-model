@@ -182,6 +182,25 @@ class PopulateHGIS:
         logger.info(f"Deduplicated DataFrame shape: {deduplicated.shape}")
         
         return deduplicated
+    
+    def translate_place_types(self, dataframe: pd.DataFrame) -> pd.DataFrame:
+        """
+        Translate the place types from Spanish to English.
+        """
+        
+        TRANSLATION_MAPPING = {
+            "Fuerte": "Fort",
+            "Parcialidad": "Partial Jurisdiction",
+            "Ciudad": "City",
+            "Villa": "Town",
+            "Pueblo": "Village",
+            "Poblacion": "Population Center",
+            "Localidad": "Locality",
+            "Rural": "Rural Area",
+            "[-]": "Unspecified"
+        }
+        dataframe["place_type"] = dataframe["place_type"].map(TRANSLATION_MAPPING)
+        return dataframe
         
     def process_file(self) -> pd.DataFrame:
         try:
@@ -217,9 +236,13 @@ class PopulateHGIS:
             
             df = df[columns]
             
+            # Resolve duplicates
             df = self.resolve_duplicates(df)
             
             df.drop(columns=["certainty_score"], inplace=True)
+            
+            # Translate place types
+            df = self.translate_place_types(df)
             
             logger.info(f"Processed file: {self.file_path}")
             logger.info(f"DataFrame shape: {df.shape}")

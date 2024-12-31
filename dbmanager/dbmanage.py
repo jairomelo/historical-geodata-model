@@ -23,6 +23,23 @@ def insert_data(cursor, data):
     """
     cursor.executemany(sql, data)
 
+def execute_sql(cursor, sql):
+    """
+    Executes a SQL command or SQL file.
+    
+    Parameters:
+        cursor (mysql.connector.cursor.MySQLCursor): The cursor object to execute the SQL command.
+        sql (str): The SQL command or the path to the SQL file to execute.
+    """
+    try:
+        if sql.endswith(".sql"):
+            with open(sql, "r") as file:
+                sql = file.read()
+        cursor.execute(sql)
+    except Exception as e:
+        print(f"Error executing SQL command: {e}")
+        raise
+
 def close_db(cursor, connection):
     cursor.close()
     connection.close()
