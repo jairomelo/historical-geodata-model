@@ -4,7 +4,7 @@ import os
 def initialize_db():
     connection = db.connect_to_db()
     cursor = connection.cursor()
-    db.create_tables(cursor, "models/sql/tgn.sql")
+    db.create_tables(cursor, "dbmanager/sql/tgn.sql")
     db.close_db(cursor, connection)
     
 def create_dirs():
