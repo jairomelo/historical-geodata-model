@@ -315,7 +315,7 @@ class Reimporter:
             self.csv_file,
             escapechar="\\",
             encoding="utf-8",
-            na_values=["\\", "N", "NULL", "", "nan"],  
+            na_values=["\\", "N", "NULL", "", "nan", "\\N"],  
             keep_default_na=True, 
             low_memory=False,
         )
