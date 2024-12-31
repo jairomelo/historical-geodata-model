@@ -155,6 +155,117 @@ class PopulateTGN:
             self.process_file(f"{self.raw_data_path if self.raw_data_path else ''}{file}")
 
 
+class PopulateHGIS:
+    def __init__(self, file_path: str):
+        self.file_path = file_path
+        self.cert_map = {
+                            "Exacta": 100,
+                            "Buena": 85,
+                            "Suficiente": 70,
+                            "Interpolada": 50,
+                            "Geoservice/Satelite": 40,
+                            "No localizado": 30,
+                            "Identificacion incierta": 25
+                        }
+        
+    def resolve_duplicates(self, dataframe: pd.DataFrame) -> pd.DataFrame:
+        """
+        Resolve duplicates in the dataframe based on 'original_source_id' and 'source'.
+        Retains the first occurrence of each duplicate group.
+        """
+        
+        logger.info(f"Found {len(dataframe[dataframe.duplicated(subset=['original_source_id', 'source'], keep=False)])} duplicate rows.")
+        
+        deduplicated = dataframe.sort_values(by="certainty_score", ascending=False) \
+                               .drop_duplicates(subset=["original_source_id", "source"], keep="first")
+    
+        logger.info(f"Deduplicated DataFrame shape: {deduplicated.shape}")
+        
+        return deduplicated
+        
+    def process_file(self) -> pd.DataFrame:
+        try:
+            df = pd.read_csv(self.file_path)
+            
+            logger.info(f"Original DataFrame shape: {df.shape}")
+            logger.info(f"Original columns: {df.columns.tolist()}")
+            
+            df = df.rename(columns={
+                    "gz_id": "original_source_id",
+                    "label": "place_name",
+                    "categoria": "place_type",
+                    "lat": "latitude",
+                    "lon": "longitude",
+                    "es_parte_de": "parent_id",
+                    "variantes": "alternate_names"
+                })
+            
+            df["certainty_score"] = df["cert"].map(self.cert_map)
+            
+            df["source"] = "HGIS"
+            
+            df["place_name"] = df["place_name"].fillna('[Unnamed Place]')
+            
+            numeric_columns = ["latitude", "longitude", "original_source_id", "parent_id"]
+            for col in numeric_columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+                
+            df = df.replace({pd.NA: None, pd.NaT: None, np.nan: None})
+            
+            columns = ["original_source_id", "source", "place_name", "place_type", 
+                        "latitude", "longitude", "parent_id", "alternate_names", "certainty_score"]
+            
+            df = df[columns]
+            
+            df = self.resolve_duplicates(df)
+            
+            df.drop(columns=["certainty_score"], inplace=True)
+            
+            logger.info(f"Processed file: {self.file_path}")
+            logger.info(f"DataFrame shape: {df.shape}")
+            logger.info(f"DataFrame columns: {df.columns.tolist()}")
+            
+            return df
+        
+        except Exception as e:
+            logger.error(f"Error processing file: {str(e)}")
+            raise
+
+    def populate_db(self) -> None:
+        connection = db.connect_to_db()
+        cursor = connection.cursor()
+        
+        try:
+            df = self.process_file()
+            
+            batch_size = 1000
+            total_batches = len(df) // batch_size + (1 if len(df) % batch_size else 0)
+            
+            for i in range(0, len(df), batch_size):
+                try:
+                    batch = df.iloc[i:i+batch_size].values.tolist()
+                    if batch:
+                        db.insert_data(cursor, batch)
+                        connection.commit()
+                        
+                    logger.info(f"Inserted batch {i//batch_size + 1} of {total_batches}")
+                    
+                except Exception as e:
+                    logger.error(f"Error in batch {i//batch_size + 1}: {str(e)}")
+                    logger.error(f"Problem row sample: {batch[0] if batch else 'No data'}")
+                    raise
+                
+            logger.info("Data insertion completed successfully.")
+            logger.info(f"Total records inserted: {len(df)}")
+            
+        except Exception as e:
+            logger.error(f"Error inserting data: {str(e)}")
+            raise
+            
+        finally:
+            db.close_db(cursor, connection)
+        
+
 class Reimporter:
     """
     Reimports data from a csv file into the database.
@@ -268,4 +379,5 @@ class Reimporter:
 if __name__ == "__main__":
     #xmlfiles = glob("raw_data/TGN/*.xml")
     #PopulateTGN(xmlfiles).populate_db()
-    Reimporter("raw_data/TGN/tgn_new_columns.csv", "places", "TGN").reimport_data()
+    PopulateHGIS("raw_data/HGIS/gz_info_1.csv").populate_db()
+    #Reimporter("raw_data/TGN/tgn_new_columns.csv", "places", "TGN").reimport_data()
