@@ -1,6 +1,14 @@
 import dbmanage as db
 from lxml import etree
 from glob import glob
+import numpy as np
+import pandas as pd
+
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s', filename="logs/populate.log")
+logger = logging.getLogger(__name__)
+
 
 class PopulateTGN:
     def __init__(self, file_list: list[str], raw_data_path: str = None) -> None:
@@ -60,7 +68,7 @@ class PopulateTGN:
                         count += 1
                         
                         # Get Place ID (Subject ID)
-                        subject_id = int(elem.get('Subject_ID'))
+                        original_source_id = int(elem.get('Subject_ID'))
                         
                         # Get preferred name from Preferred_Term using namespace
                         preferred_term = elem.find('.//{' + namespace + '}Terms/{' + namespace + '}Preferred_Term/{' + namespace + '}Term_Text')
@@ -83,11 +91,14 @@ class PopulateTGN:
                         alternate_names = []
                         for term in elem.findall('.//{' + namespace + '}Terms/{' + namespace + '}Non-Preferred_Term/{' + namespace + '}Term_Text'):
                             if term.text:
-                                alternate_names.append(term.text)
+                                # clean text before adding to list
+                                cleaned_term = term.text.replace('\\', '\\\\')
+                                alternate_names.append(cleaned_term.strip())
                         
-                        if subject_id and place_name:
+                        if original_source_id and place_name:
                             current_batch.append((
-                                subject_id,
+                                original_source_id,
+                                "TGN",
                                 place_name,
                                 place_type,
                                 latitude,
@@ -116,7 +127,7 @@ class PopulateTGN:
                 except Exception as e:
                     error_count += 1
                     print(f"Error processing record {count}: {str(e)}")
-                    continue
+                    break
             
             # Insert any remaining records
             if current_batch:
@@ -144,9 +155,117 @@ class PopulateTGN:
             self.process_file(f"{self.raw_data_path if self.raw_data_path else ''}{file}")
 
 
+class Reimporter:
+    """
+    Reimports data from a csv file into the database.
+    Only use this if you are sure you want to delete all existing data in the database.
+    
+    Parameters:
+        csv_file (str): The path to the csv file to import.
+        table_name (str): The name of the table to import the data into.
+        source (str, optional): The source of the data (e.g. "TGN" or "HGIS"). Defaults to None. If None, the source will not be filtered and all data will be deleted.
+    """
+    def __init__(self, csv_file: str, table_name: str, source: str = None):
+        self.csv_file = csv_file
+        self.table_name = table_name
+        self.source = source
+        self.connection = db.connect_to_db()
+        self.cursor = self.connection.cursor()
+
+
+    def prepare_csv(self):
+        """
+        Prepares the csv file for import.
+        """
+        df = pd.read_csv(
+            self.csv_file,
+            escapechar="\\",
+            encoding="utf-8",
+            na_values=["\\", "N", "NULL", "", "nan"],  
+            keep_default_na=True, 
+            low_memory=False,
+        )
+        
+        logger.info(f"Columns in DataFrame: {df.columns.tolist()}")
+        logger.info(f"DataFrame shape: {df.shape}")
+        
+        df['place_name'] = df['place_name'].fillna('[Unnamed Place]')
+        
+        if "alternate_names" in df.columns:
+            df["alternate_names"] = df["alternate_names"].str.replace(r'\\', '', regex=True)
+        
+        numeric_columns = ["latitude", "longitude", "original_source_id", "parent_id"]
+        for col in numeric_columns:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+                
+        df = df.replace({pd.NA: None, pd.NaT: None, np.nan: None})
+        
+        logger.info(f"Sample of prepared data:\n{df.head()}")
+        
+        return df
+    
+    def reimport_data(self):
+        try:
+            df = self.prepare_csv()
+            
+            warning = input("This will delete all existing data in the database. Are you sure? (y/n) ")
+            
+            if warning.lower() in {"y", "yes"}:
+                logger.info("Deleting all existing data in the database.")
+                
+                if self.source:
+                    self.cursor.execute(f"DELETE FROM {self.table_name} WHERE source = '{self.source}'")
+                else:
+                    self.cursor.execute(f"DELETE FROM {self.table_name}")
+                self.connection.commit()
+                
+                expected_columns = [
+                    'place_name', 'place_type', 'latitude', 'longitude', 
+                    'parent_id', 'alternate_names', 'created_at', 'updated_at',
+                    'original_source_id', 'source'
+                ]
+                
+                df = df[expected_columns]
+                
+                logger.info(f"Inserting new data from {self.csv_file}")
+                
+                values = df.values.tolist()
+                
+                columns = df.columns.tolist()
+                placeholders = ', '.join(['%s'] * len(columns))
+                sql = f"INSERT INTO {self.table_name} ({', '.join(columns)}) VALUES ({placeholders})"
+                
+                logger.info(f"SQL Statement: {sql}")
+                logger.info(f"Number of columns in SQL: {len(columns)}")
+                logger.info(f"Sample row length: {len(values[0]) if values else 0}")
+                
+                batch_size = 1000
+                for i in range(0, len(values), batch_size):
+                    batch = values[i:i + batch_size]
+                    try:
+                        self.cursor.executemany(sql, batch)
+                        self.connection.commit()
+                        logger.info(f"Inserted batch {i//batch_size + 1} of {len(values)//batch_size + 1}")
+                    except Exception as e:
+                        logger.error(f"Error in batch {i//batch_size + 1}: {str(e)}")
+                        logger.error(f"Problem row sample: {batch[0] if batch else 'No data'}")
+                        raise
+                
+                logger.info("Data reimport completed successfully.")
+            else:
+                logger.info("Operation cancelled by user.")
+                
+        except Exception as e:
+            logger.error(f"An error occurred: {str(e)}")
+            raise
+        finally:
+            self.cursor.close()
+            self.connection.close()
+            self.connection.close()
 
 
 if __name__ == "__main__":
-    file_list = glob("raw_data/TGN/*.xml")
-    populate_db = PopulateTGN(file_list)
-    populate_db.populate_db()
+    #xmlfiles = glob("raw_data/TGN/*.xml")
+    #PopulateTGN(xmlfiles).populate_db()
+    Reimporter("raw_data/TGN/tgn_new_columns.csv", "places", "TGN").reimport_data()

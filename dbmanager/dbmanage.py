@@ -18,8 +18,8 @@ def create_tables(cursor, model_file):
 
 def insert_data(cursor, data):
     sql = """
-    INSERT INTO places (place_id, place_name, place_type, latitude, longitude, parent_id, alternate_names) 
-    VALUES (%s, %s, %s, %s, %s, %s, %s)
+    INSERT INTO places (original_source_id, source, place_name, place_type, latitude, longitude, parent_id, alternate_names) 
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
     """
     cursor.executemany(sql, data)
 

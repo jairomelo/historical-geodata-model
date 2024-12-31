@@ -5,4 +5,7 @@ venv/
 *.xml
 *.out
 *.zip
+raw_data/*/*.csv
+raw_data/*/*.sql
 explore.py
+logs/*
