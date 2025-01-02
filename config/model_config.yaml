@@ -1,0 +1,15 @@
+paths:
+  train_test_split: "training/data/train_test_split.pkl"
+  model_output: "models/model.pkl"
+
+vectorizer:
+  max_features: 5000
+  stop_words: "english"
+
+model:
+  n_estimators: 100
+  max_depth: null
+  random_state: 42
+
+training:
+  cv_folds: 5
