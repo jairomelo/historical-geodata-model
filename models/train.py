@@ -17,6 +17,12 @@ from sklearn.preprocessing import StandardScaler
 
 import logging
 
+import sys
+sys.path.append(str(Path(__file__).parent.parent))
+from initialization import create_dirs
+
+create_dirs()
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
