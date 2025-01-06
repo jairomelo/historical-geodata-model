@@ -90,8 +90,8 @@ def perform_cross_validation(pipeline, X_train, y_train, cv=5) -> Tuple[float, f
         logger.error(f"Error during cross-validation: {e}")
         raise e
 
-def train_model(X_train, y_train):
-    pipeline = model_pipeline()
+def train_model(X_train, y_train, config):
+    pipeline = model_pipeline(config)
     logger.info("Starting model training...")
     start_time = time.time()
     
@@ -152,7 +152,7 @@ if __name__ == "__main__":
         )
         
         logger.info("Training final model...")
-        model = train_model(X_train, y_train)
+        model = train_model(X_train, y_train, config)
         
         logger.info("Evaluating model on test set...")
         mae = evaluate_model(model, X_test, y_test)
