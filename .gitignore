@@ -1,3 +1,4 @@
+.DS_Store
 __pycache__/
 
 venv/
@@ -10,3 +11,4 @@ raw_data/*/*.csv
 raw_data/*/*.sql
 explore.py
 logs/*
+tmp.py
