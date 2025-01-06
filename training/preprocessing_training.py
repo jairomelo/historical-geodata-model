@@ -71,7 +71,7 @@ def save_data(X_train, X_test, y_train, y_test, file_path="training/data/train_t
         raise
     
 if __name__ == "__main__":
-    df = preprocess_training_data()
+    df = preprocess_training_data(data_path="training/data/training_data_americas.csv")
     df_reduced = reduce_dimensionality(df)
     X_train, X_test, y_train, y_test = split_data(df_reduced)
     save_data(X_train, X_test, y_train, y_test)
