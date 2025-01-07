@@ -3,16 +3,17 @@ paths:
   model_output: "models/model.pkl"
 
 vectorizer:
-  max_features: 5000
+  max_features: 10000
   stop_words: "english"
+  ngram_range: (1, 2)
 
 model_type: "gbr"
 
 model:
-  n_estimators: 100
-  max_depth: 3
+  n_estimators: 500
+  max_depth: 7
   random_state: 42
-  learning_rate: 0.1
+  learning_rate: 0.05
 
 training:
   cv_folds: 5
