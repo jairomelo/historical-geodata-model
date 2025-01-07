@@ -1,0 +1,19 @@
+{
+    "start_time": "2025-01-07 13:35:08",
+    "model_type": "rfr",
+    "n_estimators": 500,
+    "max_depth": 7,
+    "random_state": 42,
+    "max_features": 10000,
+    "stop_words": "english",
+    "training_samples": 241656,
+    "test_samples": 60415,
+    "cross_validation_mae": 10.467933861574869,
+    "cross_validation_std": 0.019991352204024232,
+    "final_model_mae": 10.4200615308857,
+    "end_time": "2025-01-07 13:38:49",
+    "validation_mae_lat": 7.3565417870776555,
+    "validation_mae_lon": 11.72240805430952,
+    "validation_mse_lat": 79.95626551998055,
+    "validation_mse_lon": 617.437414005599
+}

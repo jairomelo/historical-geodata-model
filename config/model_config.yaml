@@ -7,7 +7,7 @@ vectorizer:
   stop_words: "english"
   ngram_range: (1, 2)
 
-model_type: "gbr"
+model_type: "rfr" # "gbr" or "rfr"
 
 model:
   n_estimators: 500

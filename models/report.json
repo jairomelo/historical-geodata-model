@@ -1,9 +1,0 @@
-{
-    "data_loaded": true,
-    "training_samples": 241656,
-    "test_samples": 60415,
-    "cross_validation_mae": 9.30756006391047,
-    "cross_validation_std": 0.03800980083100094,
-    "final_model_mae": 9.231148919734494,
-    "end_time": "2025-01-07 12:02:52"
-}
