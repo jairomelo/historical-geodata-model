@@ -9,7 +9,7 @@ import yaml
 import joblib
 
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import cross_val_score
@@ -61,9 +61,10 @@ def train_test_split(data_path="training/data/train_test_split.pkl"):
     except Exception as e:
         logger.error(f"Error loading train-test split: {e}")
         raise e
+    
 
-def model_pipeline(config: Dict[str, Any]) -> Pipeline:
-    pipeline = Pipeline([
+def rfr_pipeline(config: Dict[str, Any]) -> Pipeline:
+    return Pipeline([
         ("vectorizer", TfidfVectorizer(
             max_features=config["vectorizer"]["max_features"],
             stop_words=config["vectorizer"]["stop_words"]
@@ -75,7 +76,30 @@ def model_pipeline(config: Dict[str, Any]) -> Pipeline:
             random_state=config["model"]["random_state"]
         ))
     ], verbose=True)
-    return pipeline
+
+def gbr_pipeline(config: Dict[str, Any]) -> Pipeline:
+    return Pipeline([
+        ("vectorizer", TfidfVectorizer(
+            max_features=config["vectorizer"]["max_features"],
+            stop_words=config["vectorizer"]["stop_words"]
+        )),
+        ("scaler", StandardScaler(with_mean=False)), 
+        ("regressor", GradientBoostingRegressor(
+            n_estimators=config["model"]["n_estimators"],
+            learning_rate=config["model"]["learning_rate"],
+            max_depth=config["model"]["max_depth"],
+            random_state=config["model"]["random_state"]
+        ))
+    ], verbose=True)
+
+def model_pipeline(config: Dict[str, Any]) -> Pipeline:
+    model_type = config.get("model_type", "rfr").lower()
+    if model_type == "rfr":
+        return rfr_pipeline(config)
+    elif model_type == "gbr":
+        return gbr_pipeline(config)
+    else:
+        raise ValueError(f"Unsupported model type: {model_type}")
 
 def perform_cross_validation(pipeline, X_train, y_train, cv=5) -> Tuple[float, float]:
     try:

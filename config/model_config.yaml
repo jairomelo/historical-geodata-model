@@ -6,10 +6,13 @@ vectorizer:
   max_features: 5000
   stop_words: "english"
 
+model_type: "gbr"
+
 model:
   n_estimators: 100
-  max_depth: null
+  max_depth: 3
   random_state: 42
+  learning_rate: 0.1
 
 training:
   cv_folds: 5
