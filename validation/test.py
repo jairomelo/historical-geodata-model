@@ -12,7 +12,7 @@ def calculate_centroid(df):
 model = joblib.load("models/model.pkl")
 
 try:
-    df = pd.read_csv("test/testing_data.csv",
+    df = pd.read_csv("testing_data.csv",
                      dtype={"latitude": float, "longitude": float},
                      na_values=["\\", "N", "NULL", "", "nan", "\\N"],  
                      keep_default_na=True, 

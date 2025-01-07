@@ -2,6 +2,13 @@ import pandas as pd
 import joblib
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
+import sys
+import os
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+PROJECT_ROOT = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+
 class ValidationTest:
     def __init__(self):
         self.model = self.get_model()
@@ -11,14 +18,14 @@ class ValidationTest:
         return self.model.predict([f"{input_text} {place_type}"])
 
     def get_validation_data(self):
-        return pd.read_csv("test/validation_data.csv",
+        return pd.read_csv(f"{PROJECT_ROOT}/validation/validation_data.csv",
                                 dtype={"lat": float, "lon": float},
                                 na_values=["\\", "N", "NULL", "", "nan", "\\N"],
                                 keep_default_na=True,
                                 low_memory=False)
 
     def get_model(self):
-        return joblib.load("models/model.pkl")
+        return joblib.load(f"{PROJECT_ROOT}/models/model.pkl")
 
     def perform_validation(self):
         validation_df = self.get_validation_data()
