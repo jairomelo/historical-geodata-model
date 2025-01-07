@@ -1,3 +1,5 @@
+import datetime
+import json
 import os
 from pathlib import Path
 from tqdm import tqdm
@@ -9,11 +11,13 @@ import yaml
 import joblib
 
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.multioutput import MultiOutputRegressor
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import cross_val_score
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.compose import TransformedTargetRegressor
 
 import logging
 
@@ -64,32 +68,42 @@ def train_test_split(data_path="training/data/train_test_split.pkl"):
     
 
 def rfr_pipeline(config: Dict[str, Any]) -> Pipeline:
-    return Pipeline([
-        ("vectorizer", TfidfVectorizer(
-            max_features=config["vectorizer"]["max_features"],
-            stop_words=config["vectorizer"]["stop_words"]
-        )),
-        ("scaler", StandardScaler(with_mean=False)), 
-        ("regressor", RandomForestRegressor(
+    regressor = TransformedTargetRegressor(
+        regressor=RandomForestRegressor(
             n_estimators=config["model"]["n_estimators"],
             max_depth=config["model"]["max_depth"],
             random_state=config["model"]["random_state"]
-        ))
-    ], verbose=True)
-
-def gbr_pipeline(config: Dict[str, Any]) -> Pipeline:
+        ),
+        transformer=MinMaxScaler()
+    )
+    
     return Pipeline([
         ("vectorizer", TfidfVectorizer(
             max_features=config["vectorizer"]["max_features"],
             stop_words=config["vectorizer"]["stop_words"]
         )),
         ("scaler", StandardScaler(with_mean=False)), 
-        ("regressor", GradientBoostingRegressor(
+        ("regressor", regressor)
+    ], verbose=True)
+
+def gbr_pipeline(config: Dict[str, Any]) -> Pipeline:
+    base_regressor = TransformedTargetRegressor(
+        regressor=GradientBoostingRegressor(
             n_estimators=config["model"]["n_estimators"],
             learning_rate=config["model"]["learning_rate"],
             max_depth=config["model"]["max_depth"],
             random_state=config["model"]["random_state"]
-        ))
+        ),
+        transformer=MinMaxScaler()
+    )
+    
+    return Pipeline([
+        ("vectorizer", TfidfVectorizer(
+            max_features=config["vectorizer"]["max_features"],
+            stop_words=config["vectorizer"]["stop_words"]
+        )),
+        ("scaler", StandardScaler(with_mean=False)), 
+        ("regressor", MultiOutputRegressor(base_regressor))
     ], verbose=True)
 
 def model_pipeline(config: Dict[str, Any]) -> Pipeline:
@@ -155,11 +169,25 @@ def save_model(model, model_path="models/model.pkl"):
         raise e
 
 if __name__ == "__main__":
+
+    # validation test
+    from test.validation_test import ValidationTest
+
     try:
         logger.info("=== Starting Model Training Pipeline ===")
         
         logger.info("Loading configuration...")
         config = load_config()
+        
+        prepare_report = {
+            "start_time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "model_type": config["model_type"],
+            "n_estimators": config["model"]["n_estimators"],
+            "max_depth": config["model"]["max_depth"],
+            "random_state": config["model"]["random_state"],
+            "max_features": config["vectorizer"]["max_features"],
+            "stop_words": config["vectorizer"]["stop_words"]
+        }
         
         logger.info("Validating paths...")
         validate_paths(config["paths"]["train_test_split"], 
@@ -172,6 +200,9 @@ if __name__ == "__main__":
         logger.info(f"Data loaded - Training samples: {X_train.shape[0]}, "
                    f"Test samples: {X_test.shape[0]}")
         
+        prepare_report["training_samples"] = X_train.shape[0]
+        prepare_report["test_samples"] = X_test.shape[0]
+        
         logger.info("Creating model pipeline...")
         pipeline = model_pipeline(config)
         
@@ -180,6 +211,9 @@ if __name__ == "__main__":
             pipeline, X_train, y_train, 
             cv=config["training"]["cv_folds"]
         )
+
+        prepare_report["cross_validation_mae"] = cv_mae
+        prepare_report["cross_validation_std"] = cv_std
         
         logger.info("Training final model...")
         model = train_model(X_train, y_train, config)
@@ -188,6 +222,21 @@ if __name__ == "__main__":
         mae = evaluate_model(model, X_test, y_test)
         logger.info(f"Final model MAE: {mae}")
         
+        prepare_report["final_model_mae"] = mae
+
+        prepare_report["end_time"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        validation_test = ValidationTest()
+        mae_lat, mae_lon, mse_lat, mse_lon = validation_test.perform_validation()
+
+        prepare_report["validation_mae_lat"] = mae_lat
+        prepare_report["validation_mae_lon"] = mae_lon
+        prepare_report["validation_mse_lat"] = mse_lat
+        prepare_report["validation_mse_lon"] = mse_lon
+
+        with open("models/report.json", "w") as f:
+            json.dump(prepare_report, f, indent=4)
+
         logger.info("Saving model...")
         save_model(model, model_path=config["paths"]["model_output"])
         
