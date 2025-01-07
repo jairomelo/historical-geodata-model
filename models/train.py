@@ -2,6 +2,9 @@ import datetime
 import json
 import os
 from pathlib import Path
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(str(Path(__file__).parent.parent))
 from tqdm import tqdm
 import time
 from typing import Dict, Any, Tuple
@@ -21,9 +24,10 @@ from sklearn.compose import TransformedTargetRegressor
 
 import logging
 
-import sys
-sys.path.append(str(Path(__file__).parent.parent))
 from initialization import create_dirs
+
+PROJECT_ROOT = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+sys.path.insert(0, PROJECT_ROOT)
 
 create_dirs()
 
@@ -171,7 +175,7 @@ def save_model(model, model_path="models/model.pkl"):
 if __name__ == "__main__":
 
     # validation test
-    from test.validation_test import ValidationTest
+    from validation.validation_test import ValidationTest
 
     try:
         logger.info("=== Starting Model Training Pipeline ===")
@@ -234,7 +238,7 @@ if __name__ == "__main__":
         prepare_report["validation_mse_lat"] = mse_lat
         prepare_report["validation_mse_lon"] = mse_lon
 
-        with open("models/report.json", "w") as f:
+        with open(f"{PROJECT_ROOT}/models/training_report_{config['model_type']}_{prepare_report['end_time']}.json", "w") as f:
             json.dump(prepare_report, f, indent=4)
 
         logger.info("Saving model...")
